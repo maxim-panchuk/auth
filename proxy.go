@@ -361,7 +361,8 @@ func handle(c echo.Context) {
 }
 
 func initDb() *gorm.DB {
-	dsn := "host=localhost user=postgres password=password dbname=postgres port=5432 sslmode=disable"
+	//dsn := "host=localhost user=postgres password=password dbname=postgres port=5432 sslmode=disable"
+	dsn := "host=c-c9qikb36ojt5s6c7vpfo.rw.mdb.yandexcloud.net user=tsypk password=15.Aleksei dbname=tsypk port=6432 search_path=dev"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
