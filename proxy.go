@@ -383,7 +383,7 @@ func handle(c echo.Context) {
 			fmt.Println(err)
 			c.String(http.StatusInternalServerError, "proxy error fetching response from back")
 		}
-
+		resp.Header().Set("Content-Type", "application/json")
 		c.String(resp.StatusCode(), string(resp.Body()))
 		return
 	} else {
@@ -393,7 +393,7 @@ func handle(c echo.Context) {
 			fmt.Println(err)
 			c.String(http.StatusInternalServerError, "proxy error fetching response from back")
 		}
-
+		resp.Header().Set("Content-Type", "application/json")
 		c.String(resp.StatusCode(), string(resp.Body()))
 		return
 	}
