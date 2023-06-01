@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/logger"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -188,9 +189,16 @@ func main() {
 					return nil, err
 				}
 
+				userId, err := userRepo.GetIdByUsername(username)
+				if err != nil {
+					log.Printf("proxy extracting user id error: %v\n", err)
+					return nil, err
+				}
+
 				// both tokens added to response headers and ready to be sent to backend and returned to frontend
 				c.Response().Header().Set("X-Access-Token", newAccessToken)
 				c.Response().Header().Set("X-Refresh-Token", newRefreshToken)
+				c.Response().Header().Set("UserId", strconv.Itoa(userId))
 
 				c.Response().Header().Set("Username", username)
 				c.Response().Header().Set("Role", role)
@@ -224,9 +232,16 @@ func main() {
 
 			// TODO if access token is not expired and valid, then return nil and go to SuccessHandler [done]
 
+			userId, err := userRepo.GetIdByUsername(accessToken.Claims.(jwt.MapClaims)["username"].(string))
+			if err != nil {
+				log.Printf("proxy extracting user id error: %v\n", err)
+				return nil, err
+			}
+
 			c.Response().Header().Set("Username", accessToken.Claims.(jwt.MapClaims)["username"].(string))
 			c.Response().Header().Set("Role", accessToken.Claims.(jwt.MapClaims)["role"].(string))
 			c.Response().Header().Set("X-Access-Token", auth)
+			c.Response().Header().Set("UserId", strconv.Itoa(userId))
 			c.Response().Header().Set("X-Refresh-Token", "")
 			return nil, nil
 		},
@@ -273,6 +288,12 @@ func main() {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
 
+		userId, err := userRepo.GetIdByUsername(credentials.Username)
+		if err != nil {
+			log.Printf("proxy extracting user id error: %v\n", err)
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+		c.Response().Header().Set("UserId", strconv.Itoa(userId))
 		c.Response().Header().Set("X-Access-Token", newAccessToken)
 		c.Response().Header().Set("X-Refresh-Token", newRefreshToken)
 		c.Response().Header().Set("Role", credentials.Role)
@@ -323,6 +344,13 @@ func main() {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
 
+		userId, err := userRepo.GetIdByUsername(credentials.Username)
+		if err != nil {
+			log.Printf("proxy extracting user id error: %v\n", err)
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+
+		c.Response().Header().Set("UserId", strconv.Itoa(userId))
 		c.Response().Header().Set("X-Access-Token", newAccessToken)
 		c.Response().Header().Set("X-Refresh-Token", newRefreshToken)
 		c.Response().Header().Set("Role", role)
@@ -337,7 +365,6 @@ func main() {
 func handle(c echo.Context) {
 	method := c.Request().Method
 	url := c.Request().URL.Path
-	host := c.Request().Host
 	body := c.Request().Body
 
 	request := client.NewRequest()
@@ -346,18 +373,31 @@ func handle(c echo.Context) {
 	request.Header = map[string][]string{
 		"Username": []string{c.Response().Header().Get("Username")},
 		"Role":     []string{c.Response().Header().Get("Role")},
+		"UserId":   []string{c.Response().Header().Get("UserId")},
 	}
 	request.Body = body
+	if method == "GET" {
+		fmt.Println("making request to: [GET]" + "http://localhost:8083" + url)
+		resp, err := request.Get("http://localhost:8083" + url)
+		if err != nil {
+			fmt.Println(err)
+			c.String(http.StatusInternalServerError, "proxy error fetching response from back")
+		}
 
-	fmt.Println("making request to: " + "http://" + host + url)
-	resp, err := request.Get("http://localhost:8081" + url)
-	if err != nil {
-		fmt.Println(err)
-		c.String(http.StatusInternalServerError, "proxy error fetching response from back")
+		c.String(resp.StatusCode(), string(resp.Body()))
+		return
+	} else {
+		fmt.Println("making request to: [POST]" + "http://localhost:8083" + url)
+		resp, err := request.Post("http://localhost:8083" + url)
+		if err != nil {
+			fmt.Println(err)
+			c.String(http.StatusInternalServerError, "proxy error fetching response from back")
+		}
+
+		c.String(resp.StatusCode(), string(resp.Body()))
+		return
 	}
 
-	c.String(resp.StatusCode(), string(resp.Body()))
-	return
 }
 
 func initDb() *gorm.DB {

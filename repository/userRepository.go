@@ -8,4 +8,5 @@ type UserRepository interface {
 	CheckIfExists(username string) (bool, error)
 	Save(userDto *entity.User) error
 	GetRoleByUsername(username string) (string, error)
+	GetIdByUsername(username string) (int, error)
 }

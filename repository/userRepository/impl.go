@@ -11,6 +11,15 @@ type repo struct {
 	db *gorm.DB
 }
 
+func (r *repo) GetIdByUsername(username string) (int, error) {
+	var id int
+	if err := r.db.Model(&entity.User{}).Select("id").Where("username = ?").First(&id).Error; err != nil {
+		log.Printf("user get id by username repository err: %v\n", err)
+		return -1, err
+	}
+	return id, nil
+}
+
 func (r *repo) Save(userDto *entity.User) error {
 	if err := r.db.Create(&userDto).Error; err != nil {
 		log.Printf("user save error: %v", err)
