@@ -13,7 +13,7 @@ type repo struct {
 
 func (r *repo) GetIdByUsername(username string) (int, error) {
 	var id int
-	if err := r.db.Model(&entity.User{}).Select("id").Where("username = ?").First(&id).Error; err != nil {
+	if err := r.db.Model(&entity.User{}).Select("id").Where("username = ?", username).First(&id).Error; err != nil {
 		log.Printf("user get id by username repository err: %v\n", err)
 		return -1, err
 	}
